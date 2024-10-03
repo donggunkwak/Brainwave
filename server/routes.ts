@@ -7,6 +7,7 @@ import { PostOptions } from "./concepts/posting";
 import { SessionDoc } from "./concepts/sessioning";
 import Responses from "./responses";
 
+import { Session } from "express-session";
 import { z } from "zod";
 import { CommentOptions } from "./concepts/commenting";
 
@@ -114,6 +115,7 @@ class Routes {
     return Posting.delete(oid);
   }
 
+  //Comments on Posts
   @Router.get("/posts/:pid/comments")
   @Router.validate(z.object({pid: z.string()}))
   async getCommentsOnPosts(pid:string) {
@@ -147,6 +149,7 @@ class Routes {
     return CommentOnPost.delete(oid);
   }
 
+  //Likes on Posts
   @Router.get("/users/:username/likes")
   async getLikes(username: string) {
     const id = (await Authing.getUserByUsername(username))._id;
@@ -174,6 +177,82 @@ class Routes {
     await Posting.assertPostExists(oid);//check if that post exists!
     return await LikeOnPost.removeLike(oid, user);
   }
+
+  //Correctness Voting on posts
+  
+  /**
+   * Returns number of correct/incorrect votes on post
+   */
+  @Router.get("/posts/:pid/cvote")
+  async getCorrectnessVotesOnPost(pid:string){
+    
+  }
+
+  /**
+   * votes correct on a post
+   */
+  @Router.post("/posts/:pid/cvote")
+  async voteCorrectOnPost(session:SessionDoc, pid:string){
+  }
+
+  /**
+   * votes incorrect on a post
+   */
+  @Router.post("/posts/:pid/cvote")
+  async voteIncorrectOnPost(session:SessionDoc, pid:string){
+  }
+
+  /**
+   * removes vote on a post
+   */
+  @Router.delete("/posts/:pid/cvote")
+  async removeVoteOnPost(session:SessionDoc,pid:string){
+
+  }
+
+  //Professional Verifying
+  
+  /**
+   * gets verified users
+   */
+  @Router.get("/verified")
+  async getVerifiedUsers(){
+
+  }
+
+  /**
+   * submit a verification request
+   */
+  @Router.post("/verified/request")
+  async submitVerificationReq(session:Session, content:string){
+
+  }
+
+  /**
+   * Approve a verification request - must be an administrator
+   */
+  @Router.post("/verified/request/:id")
+  async approveVerificationReq(session:Session,id:string){
+
+  }
+
+  /**
+   * Reject a verification request - must be an administrator
+   */
+  @Router.delete("/verified/request/:id")
+  async rejectVerificationReq(session:Session,id:string){
+
+  }
+  
+  /**
+   * Unverifies a User - must be an administrator
+   */
+  @Router.patch("/verified/:username")
+  async unverifyUser(session:Session,username:string){
+    
+  }
+
+
 
 
   @Router.get("/friends")
