@@ -2,12 +2,13 @@ import { ObjectId } from "mongodb";
 
 import { Router, getExpressRouter } from "./framework/router";
 
-import { Authing, Friending, Posting, Sessioning } from "./app";
+import { Authing, CommentOnPost, Friending, LikeOnPost, Posting, Sessioning } from "./app";
 import { PostOptions } from "./concepts/posting";
 import { SessionDoc } from "./concepts/sessioning";
 import Responses from "./responses";
 
 import { z } from "zod";
+import { CommentOptions } from "./concepts/commenting";
 
 /**
  * Web server routes for the app. Implements synchronizations between concepts.
@@ -80,7 +81,14 @@ class Routes {
     } else {
       posts = await Posting.getPosts();
     }
-    return Responses.posts(posts);
+    posts =await Responses.posts(posts); 
+    let newPosts = [];
+    for(let post of posts){
+      let numLikes = await LikeOnPost.getNumLikes(post._id);
+      let comments = await CommentOnPost.getByItem(post._id);
+      newPosts.push({...post, likes:numLikes, comments:comments});
+    }
+    return newPosts;
   }
 
   @Router.post("/posts")
@@ -105,6 +113,68 @@ class Routes {
     await Posting.assertAuthorIsUser(oid, user);
     return Posting.delete(oid);
   }
+
+  @Router.get("/posts/:pid/comments")
+  @Router.validate(z.object({pid: z.string()}))
+  async getCommentsOnPosts(pid:string) {
+    let comments;
+    const id = new ObjectId(pid);
+    comments = await CommentOnPost.getByItem(id);
+
+    return Responses.comments(comments);
+  }
+  @Router.post("/posts/:pid/comments")
+  async createCommentOnPost(session: SessionDoc, pid: string, content: string, options?: PostOptions) {
+    const user = Sessioning.getUser(session);
+    const itemID = new ObjectId(pid);
+    await Posting.assertPostExists(itemID);//check if that post exists!
+    const created = await CommentOnPost.create(itemID, user, content, options);
+    return { msg: created.msg, comment: await Responses.comment(created.comment) };
+  }
+  @Router.patch("/posts/:pid/comments/:id")
+  async updateCommentOnPost(session: SessionDoc, id: string, content?: string, options?: CommentOptions) {
+    const user = Sessioning.getUser(session);
+    const oid = new ObjectId(id);
+    await CommentOnPost.assertAuthorIsUser(oid, user);
+    return await CommentOnPost.update(oid, content, options);
+  }
+
+  @Router.delete("/posts/:pid/comments/:id")
+  async deleteCommentOnPost(session: SessionDoc, id: string) {
+    const user = Sessioning.getUser(session);
+    const oid = new ObjectId(id);
+    await CommentOnPost.assertAuthorIsUser(oid, user);
+    return CommentOnPost.delete(oid);
+  }
+
+  @Router.get("/users/:username/likes")
+  async getLikes(username: string) {
+    const id = (await Authing.getUserByUsername(username))._id;
+    return await LikeOnPost.getLikesByUser(id);
+  }
+
+  @Router.get("/posts/:pid/likes")
+  async getNumLikesOnPost(pid:string){
+    return await LikeOnPost.getNumLikes(new ObjectId(pid));
+  }
+
+  @Router.post("/posts/:pid/likes")
+  async addLikeOnPost(session:SessionDoc, pid:string){
+    const user = Sessioning.getUser(session);
+    const oid = new ObjectId(pid);
+    await Posting.assertPostExists(oid);//check if that post exists!
+    const liked = await LikeOnPost.addLike(oid, user);
+    return { msg: liked.msg, like: await Responses.like(liked.like)};
+  }
+
+  @Router.delete("/posts/:pid/likes")
+  async removeLikeOnPost(session:SessionDoc, pid:string){
+    const user = Sessioning.getUser(session);
+    const oid = new ObjectId(pid);
+    await Posting.assertPostExists(oid);//check if that post exists!
+    return await LikeOnPost.removeLike(oid, user);
+  }
+
 
   @Router.get("/friends")
   async getFriends(session: SessionDoc) {

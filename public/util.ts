@@ -80,6 +80,50 @@ const operations: Operation[] = [
     method: "DELETE",
     fields: { id: "input" },
   },
+  {
+    name: "Get Comments on Post",
+    endpoint: "/api/posts/:pid/comments",
+    method: "GET",
+    fields: { pid: "input"},
+  },
+  {
+    name: "Create Comment on Post",
+    endpoint: "/api/posts/:pid/comments",
+    method: "POST",
+    fields: { pid: "input", content: "input" },
+  },
+  {
+    name: "Update Comment on Post",
+    endpoint: "/api/posts/:pid/comments/:id",
+    method: "PATCH",
+    fields: { id: "input", content: "input", options: { backgroundColor: "input" } },
+  },
+  {
+    name: "Delete Comment on Post",
+    endpoint: "/api/posts/:pid/comments/:id",
+    method: "DELETE",
+    fields: { id: "input" },
+  },
+  {
+    name: "Get User Likes",
+    endpoint: "/api/users/:username/likes",
+    method: "GET",
+    fields: {username: "input"}
+  },
+  {
+    name: "Add Like on Post",
+    endpoint: "/api/posts/:pid/likes",
+    method: "POST",
+    fields: {pid: "input"}
+  },
+  {
+    name: "Remove Like on Post",
+    endpoint: "/api/posts/:pid/likes",
+    method: "DELETE",
+    fields: {pid: "input"}
+  },
+
+
   //
   // ...
   //

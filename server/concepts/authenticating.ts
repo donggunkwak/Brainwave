@@ -88,7 +88,9 @@ export default class AuthenticatingConcept {
     if (user.password !== currentPassword) {
       throw new NotAllowedError("The given current password is wrong!");
     }
-
+    if(!newPassword){
+      throw new BadValuesError("Password must be non-empty!");
+    }
     await this.users.partialUpdateOne({ _id }, { password: newPassword });
     return { msg: "Password updated successfully!" };
   }

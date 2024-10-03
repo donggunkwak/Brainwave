@@ -1,5 +1,7 @@
 import { Authing } from "./app";
+import { CommentDoc } from "./concepts/commenting";
 import { AlreadyFriendsError, FriendNotFoundError, FriendRequestAlreadyExistsError, FriendRequestDoc, FriendRequestNotFoundError } from "./concepts/friending";
+import { LikeDoc } from "./concepts/liking";
 import { PostAuthorNotMatchError, PostDoc } from "./concepts/posting";
 import { Router } from "./framework/router";
 
@@ -26,6 +28,46 @@ export default class Responses {
     const authors = await Authing.idsToUsernames(posts.map((post) => post.author));
     return posts.map((post, i) => ({ ...post, author: authors[i] }));
   }
+
+  /**
+  * Convert CommentDoc into more readable format for the frontend by converting the author id into a username.
+  */
+  static async comment(comment: CommentDoc | null) {
+    if (!comment) {
+      return comment;
+    }
+    const author = await Authing.getUserById(comment.author);
+    return { ...comment, author: author.username };
+  }
+
+  /**
+   * Same as {@link comment} but for an array of CommentDoc for improved performance.
+   */
+  static async comments(comments: CommentDoc[]) {
+    const authors = await Authing.idsToUsernames(comments.map((comment) => comment.author));
+    return comments.map((comment, i) => ({ ...comment, author: authors[i] }));
+  }
+
+  
+   /**
+  * Convert LikeDoc into more readable format for the frontend by converting the author id into a username.
+  */
+   static async like(like: LikeDoc | null) {
+    if (!like) {
+      return like;
+    }
+    const liker = await Authing.getUserById(like.liker);
+    return { ...like, liker: liker.username };
+  }
+
+  /**
+   * Same as {@link like} but for an array of LikeDoc for improved performance.
+   */
+  static async likes(likes: LikeDoc[]) {
+    const likers = await Authing.idsToUsernames(likes.map((like) => like.liker));
+    return likes.map((like, i) => ({ ...like, liker: likers[i] }));
+  }
+
 
   /**
    * Convert FriendRequestDoc into more readable format for the frontend
