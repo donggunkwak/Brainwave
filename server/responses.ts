@@ -1,8 +1,10 @@
 import { Authing } from "./app";
 import { CommentDoc } from "./concepts/commenting";
+import { VoteDoc } from "./concepts/correctnessvoting";
 import { AlreadyFriendsError, FriendNotFoundError, FriendRequestAlreadyExistsError, FriendRequestDoc, FriendRequestNotFoundError } from "./concepts/friending";
 import { LikeDoc } from "./concepts/liking";
 import { PostAuthorNotMatchError, PostDoc } from "./concepts/posting";
+import { RequestVerifyDoc, VerificationDoc } from "./concepts/professionalverifying";
 import { Router } from "./framework/router";
 
 /**
@@ -67,6 +69,58 @@ export default class Responses {
     const likers = await Authing.idsToUsernames(likes.map((like) => like.liker));
     return likes.map((like, i) => ({ ...like, liker: likers[i] }));
   }
+
+
+   /**
+  * Convert VoteDoc into more readable format for the frontend by converting the author id into a username.
+  */
+   static async vote(vote: VoteDoc | null) {
+    if (!vote) {
+      return vote;
+    }
+    const voter = await Authing.getUserById(vote.voter);
+    return { ...vote, voter: voter.username };
+  }
+
+  /**
+  * Convert VerificationDoc into more readable format for the frontend by converting the author id into a username.
+  */
+  static async verification(verification: VerificationDoc | null) {
+    if (!verification) {
+      return verification;
+    }
+    const user = await Authing.getUserById(verification.user);
+    const approver = await Authing.getUserById(verification.approver);
+    return { ...verification, user: user.username, approver:approver.username };
+  }
+
+  /**
+   * Same as {@link verification} but for an array of VerificationDoc for improved performance.
+   */
+  static async verifications(verifications: VerificationDoc[]) {
+    const users = await Authing.idsToUsernames(verifications.map((verification) => verification.user));
+    const approvers = await Authing.idsToUsernames(verifications.map((verification) => verification.approver));
+    return verifications.map((verification, i) => ({ ...verification, user: users[i], approver:approvers[i] }));
+  }
+
+  /**
+  * Convert RequestVerifyDoc into more readable format for the frontend by converting the author id into a username.
+  */
+  static async requestverify(request: RequestVerifyDoc | null) {
+    if (!request) {
+      return request;
+    }
+    const user = await Authing.getUserById(request.user);
+    return { ...request, user: user.username };
+  }
+  /**
+   * Same as {@link requestverify} but for an array of RequestVerifyDoc for improved performance.
+   */
+  static async requestverifys(requests: RequestVerifyDoc[]) {
+    const users = await Authing.idsToUsernames(requests.map((request) => request.user));
+    return requests.map((request, i) => ({ ...request, user: users[i] }));
+  }
+  
 
 
   /**

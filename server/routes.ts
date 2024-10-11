@@ -2,7 +2,7 @@ import { ObjectId } from "mongodb";
 
 import { Router, getExpressRouter } from "./framework/router";
 
-import { Authing, CommentOnPost, Friending, LikeOnPost, Posting, Sessioning } from "./app";
+import { Authing, CommentOnPost, Friending, LikeOnPost, Posting, ProfessionalVerifying, Sessioning, VoteOnPost } from "./app";
 import { PostOptions } from "./concepts/posting";
 import { SessionDoc } from "./concepts/sessioning";
 import Responses from "./responses";
@@ -25,13 +25,29 @@ class Routes {
 
   @Router.get("/users")
   async getUsers() {
-    return await Authing.getUsers();
+    const users = await Authing.getUsers();
+    let usersUpdated = [];
+    for(let user of users){
+      if(await ProfessionalVerifying.isUserVerified(user._id)){
+        usersUpdated.push({...user, verified:true});
+      }
+      else{
+        usersUpdated.push({...user, verified:false});
+      }
+    }
+    return usersUpdated;
   }
 
   @Router.get("/users/:username")
   @Router.validate(z.object({ username: z.string().min(1) }))
   async getUser(username: string) {
-    return await Authing.getUserByUsername(username);
+    const user =  await Authing.getUserByUsername(username);
+    if(await ProfessionalVerifying.isUserVerified(user._id)){
+      return {...user, verified:true};
+    }
+    else{
+      return {...user, verified:false};
+    }
   }
 
   @Router.post("/users")
@@ -83,13 +99,14 @@ class Routes {
       posts = await Posting.getPosts();
     }
     posts =await Responses.posts(posts); 
-    let newPosts = [];
+    let postsExtended = [];
     for(let post of posts){
       let numLikes = await LikeOnPost.getNumLikes(post._id);
       let comments = await CommentOnPost.getByItem(post._id);
-      newPosts.push({...post, likes:numLikes, comments:comments});
+      let votes = await VoteOnPost.getCorrectnessVotes(post._id);
+      postsExtended.push({...post, likes:numLikes, comments:comments, votes:votes});
     }
-    return newPosts;
+    return postsExtended;
   }
 
   @Router.post("/posts")
@@ -153,11 +170,12 @@ class Routes {
   @Router.get("/users/:username/likes")
   async getLikes(username: string) {
     const id = (await Authing.getUserByUsername(username))._id;
-    return await LikeOnPost.getLikesByUser(id);
+    return Responses.likes(await LikeOnPost.getLikesByUser(id));
   }
 
   @Router.get("/posts/:pid/likes")
   async getNumLikesOnPost(pid:string){
+    const oid = new ObjectId(pid);
     return await LikeOnPost.getNumLikes(new ObjectId(pid));
   }
 
@@ -185,21 +203,32 @@ class Routes {
    */
   @Router.get("/posts/:pid/cvote")
   async getCorrectnessVotesOnPost(pid:string){
-    
+    const oid = new ObjectId(pid);
+    return await VoteOnPost.getCorrectnessVotes(oid);
   }
 
   /**
    * votes correct on a post
    */
-  @Router.post("/posts/:pid/cvote")
+  @Router.post("/posts/:pid/cvote/correct")
   async voteCorrectOnPost(session:SessionDoc, pid:string){
+    const user = Sessioning.getUser(session);
+    const oid = new ObjectId(pid);
+    await Posting.assertPostExists(oid);//check if that post exists!
+    const voted = await VoteOnPost.voteCorrect(oid,user);
+    return { msg: voted.msg, like: await Responses.vote(voted.vote)};
   }
 
   /**
    * votes incorrect on a post
    */
-  @Router.post("/posts/:pid/cvote")
+  @Router.post("/posts/:pid/cvote/incorrect")
   async voteIncorrectOnPost(session:SessionDoc, pid:string){
+    const user = Sessioning.getUser(session);
+    const oid = new ObjectId(pid);
+    await Posting.assertPostExists(oid);//check if that post exists!
+    const voted = await VoteOnPost.voteIncorrect(oid,user);
+    return { msg: voted.msg, like: await Responses.vote(voted.vote)};
   }
 
   /**
@@ -207,33 +236,59 @@ class Routes {
    */
   @Router.delete("/posts/:pid/cvote")
   async removeVoteOnPost(session:SessionDoc,pid:string){
-
+    const user = Sessioning.getUser(session);
+    const oid = new ObjectId(pid);
+    await Posting.assertPostExists(oid);//check if that post exists!
+    return await VoteOnPost.removeVote(oid,user);
   }
 
   //Professional Verifying
   
+  
+
   /**
-   * gets verified users
+   * gets verified user by username
    */
   @Router.get("/verified")
-  async getVerifiedUsers(){
+  @Router.validate(z.object({ username: z.string().optional() }))
+  async getVerifiedUsers(username:string){
+    if(username){
+      const id = (await Authing.getUserByUsername(username))._id;
+      return Responses.verification(await ProfessionalVerifying.getVerifiedUser(id));
+    }
+    let verifiedUsers = await ProfessionalVerifying.getVerifiedUsers();
 
+    return Responses.verifications(verifiedUsers);
   }
+
+  /**
+   * Get requests
+   */
+  @Router.get("/verified/request")
+  async getVerificationRequests(){
+    return Responses.requestverifys(await ProfessionalVerifying.getRequests());
+  }
+
 
   /**
    * submit a verification request
    */
   @Router.post("/verified/request")
   async submitVerificationReq(session:Session, content:string){
-
+    const user = Sessioning.getUser(session);
+    const created = await ProfessionalVerifying.submitRequest(user,content)
+    return { msg: created.msg, request: await Responses.requestverify(created.request) };
   }
 
   /**
    * Approve a verification request - must be an administrator
    */
   @Router.post("/verified/request/:id")
-  async approveVerificationReq(session:Session,id:string){
-
+  async approveVerificationReq(session:Session,id:string,verificationContent:string){
+    const user = Sessioning.getUser(session);
+    await Authing.assertUserIsAdmin(user);
+    const oid = new ObjectId(id);
+    return await ProfessionalVerifying.acceptRequest(oid,verificationContent,user);
   }
 
   /**
@@ -241,15 +296,21 @@ class Routes {
    */
   @Router.delete("/verified/request/:id")
   async rejectVerificationReq(session:Session,id:string){
-
+    const user = Sessioning.getUser(session);
+    await Authing.assertUserIsAdmin(user);
+    const oid = new ObjectId(id);
+    return await ProfessionalVerifying.rejectRequest(oid);
   }
   
   /**
    * Unverifies a User - must be an administrator
    */
-  @Router.patch("/verified/:username")
+  @Router.delete("/verified/:username")
   async unverifyUser(session:Session,username:string){
-    
+    const user = Sessioning.getUser(session);
+    await Authing.assertUserIsAdmin(user);
+    const id = (await Authing.getUserByUsername(username))._id;
+    return await ProfessionalVerifying.unverifyUser(id);
   }
 
 

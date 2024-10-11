@@ -122,6 +122,61 @@ const operations: Operation[] = [
     method: "DELETE",
     fields: {pid: "input"}
   },
+  {
+    name: "Vote Correct on Post",
+    endpoint:"/api/posts/:pid/cvote/correct",
+    method:"POST",
+    fields:{pid:"input"}
+  },
+  {
+    name: "Vote Incorrect on Post",
+    endpoint:"/api/posts/:pid/cvote/incorrect",
+    method:"POST",
+    fields:{pid:"input"}
+  },
+  {
+    name: "Delete Vote on Post",
+    endpoint:"/api/posts/:pid/cvote",
+    method:"DELETE",
+    fields:{pid:"input"}
+  },
+  {
+    name:"Get Verified Users (Empty for All)",
+    endpoint:"/api/verified",
+    method:"GET",
+    fields:{username:"input"}
+  },
+  {
+    name:"Submit a Verification Request",
+    endpoint:"/api/verified/request",
+    method:"POST",
+    fields:{content:"input"}
+  },
+  {
+    name:"Get Requests",
+    endpoint:"/api/verified/request",
+    method:"GET",
+    fields:{}
+  },
+  {
+    name:"Approve a Verification Request (MUST BE ADMIN)",
+    endpoint:"/api/verified/request/:id",
+    method:"POST",
+    fields:{id:"input", verificationContent:"input"}
+  },
+  {
+    name:"Reject a Verification Request (MUST BE ADMIN)",
+    endpoint:"/api/verified/request/:id",
+    method:"DELETE",
+    fields:{id:"input"}
+  },
+  {
+    name:"Unverify a User (MUST BE ADMIN)",
+    endpoint:"/api/verified/:username",
+    method:"DELETE",
+    fields:{username:"input"}
+  },
+  
 
 
   //
